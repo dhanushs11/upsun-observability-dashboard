@@ -1,0 +1,15 @@
+services:
+  dashboard:
+    build: .
+    image: upsun-observability-dashboard:latest
+    container_name: upsun-dashboard
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # One token powers both the REST API and CLI SSH-cert generation.
+      UPSUN_API_TOKEN: ${UPSUN_API_TOKEN:-}
+      PLATFORMSH_CLI_TOKEN: ${UPSUN_API_TOKEN:-}
+    volumes:
+      # SSH keys/certificates + CLI session state for logs/exec.
+      - ${HOME}/.platformsh:/home/node/.platformsh
