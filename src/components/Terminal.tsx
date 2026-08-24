@@ -7,10 +7,12 @@ export default function Terminal({
   projectId,
   env,
   app,
+  kind,
 }: {
   projectId: string
   env: string
   app: string
+  kind?: 'webapp' | 'worker'
 }) {
   const hostRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<XTerm | null>(null)
@@ -38,7 +40,7 @@ export default function Terminal({
 
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:'
     const ws = new WebSocket(
-      `${proto}//${location.host}/ws/exec?project=${encodeURIComponent(projectId)}&env=${encodeURIComponent(env)}&app=${encodeURIComponent(app)}`,
+      `${proto}//${location.host}/ws/exec?project=${encodeURIComponent(projectId)}&env=${encodeURIComponent(env)}&app=${encodeURIComponent(app)}&kind=${kind === 'worker' ? 'worker' : 'app'}`,
     )
     ws.binaryType = 'arraybuffer'
     ws.onopen = () => {
@@ -71,7 +73,7 @@ export default function Terminal({
       term.dispose()
       termRef.current = null
     }
-  }, [projectId, env, app])
+  }, [projectId, env, app, kind])
 
   return (
     <div>

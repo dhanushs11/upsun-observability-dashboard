@@ -106,7 +106,8 @@ api.get(
   guard(async (req) => {
     const now = Math.floor(Date.now() / 1000)
     const to = Number(req.query.to ?? now)
-    const rangeSec = Math.min(Number(req.query.range ?? 900), 1800)
+    // Upsun log retention allows long ranges; keep 24h as a safe ceiling.
+    const rangeSec = Math.min(Number(req.query.range ?? 3600), 86400)
     const from = Number(req.query.from ?? to - rangeSec)
     const limit = Math.min(Number(req.query.limit ?? 100), 500)
     const params = new URLSearchParams({
@@ -117,10 +118,12 @@ api.get(
     })
     const cursor = String(req.query.cursor ?? '')
     if (cursor) params.set('cursor', cursor)
+    // The API only honors array-style filters: services[], severities[], log_kinds[].
+    for (const service of String(req.query.service ?? '').split(',').filter(Boolean)) {
+      params.append('services[]', service)
+    }
     const severity = String(req.query.severity ?? '')
-    if (severity) params.set('severity', severity)
-    const search = String(req.query.search ?? '')
-    if (search) params.set('search', search)
+    if (severity) params.append('severities[]', severity)
     return upsunGet(
       `projects/${req.params.projectId}/environments/${encodeURIComponent(req.params.env)}/observability/logs/query?${params.toString()}`,
     )

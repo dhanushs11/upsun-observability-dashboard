@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { useSelection } from '../App'
 import { api } from '../api'
 import type { SeriesResponse, Workload } from '../types'
@@ -9,65 +9,88 @@ import { Gauge, MetricChart } from '../components/charts'
 const LogViewer = lazy(() => import('../components/LogViewer'))
 const TerminalPane = lazy(() => import('../components/Terminal'))
 
+function useDeploymentWorkload(
+  name: string,
+): { w: Workload | null; error: string | null; loading: boolean } {
+  const { project, env } = useSelection()
+  const [state, setState] = useState<{ key: string; w: Workload | null; error: string | null }>({
+    key: '',
+    w: null,
+    error: null,
+  })
+  const key = `${project}/${env}/${name}`
+  useEffect(() => {
+    api
+      .deployment(project, env)
+      .then((d) =>
+        setState({
+          key,
+          w: d.workloads.find((x) => x.name === name) ?? null,
+          error: null,
+        }),
+      )
+      .catch((e) => setState({ key, w: null, error: e.message }))
+  }, [project, env, name, key])
+  return { w: state.key === key ? state.w : null, error: state.error, loading: state.key !== key }
+}
+
 export default function WorkloadDetail() {
   const { name = '' } = useParams()
   const { project, env } = useSelection()
   const [tab, setTab] = useState<'overview' | 'metrics' | 'logs' | 'terminal'>('overview')
+  const { w, error, loading } = useDeploymentWorkload(name)
 
   if (!project || !env) return <Loading label="Select a project and environment…" />
+  if (loading) return <Loading label={`Loading ${name}…`} />
+  if (error) return <ErrorBox message={error} />
 
   return (
     <div>
       <div className="detail-header">
         <h2>{name}</h2>
+        {w && <span className="chip INFO">{w.kind}</span>}
+        {w && <span className="chip Running">{w.runtime}</span>}
       </div>
       <div className="meta-row">
         <span>Environment: {env}</span>
         <span>Project: {project}</span>
       </div>
-      <div className="tabs">
-        <button className={tab === 'overview' ? 'active' : ''} onClick={() => setTab('overview')}>Overview</button>
-        <button className={tab === 'metrics' ? 'active' : ''} onClick={() => setTab('metrics')}>Metrics</button>
-        <button className={tab === 'logs' ? 'active' : ''} onClick={() => setTab('logs')}>Logs</button>
-        <button className={tab === 'terminal' ? 'active' : ''} onClick={() => setTab('terminal')}>Terminal (exec)</button>
-      </div>
-      {tab === 'overview' && <OverviewTab name={name} />}
-      {tab === 'metrics' && <MetricsTab name={name} />}
-      {tab === 'logs' && <LogsTab name={name} />}
-      {tab === 'terminal' && <TerminalTab name={name} />}
+      {!w ? (
+        <>
+          <ErrorBox
+            message={`Workload "${name}" does not exist in ${env}. You may have switched project or environment while viewing a detail page.`}
+          />
+          <p>
+            <Link to="/workloads">← Back to workloads</Link>
+          </p>
+        </>
+      ) : (
+        <>
+          <div className="tabs">
+            <button className={tab === 'overview' ? 'active' : ''} onClick={() => setTab('overview')}>Overview</button>
+            <button className={tab === 'metrics' ? 'active' : ''} onClick={() => setTab('metrics')}>Metrics</button>
+            <button className={tab === 'logs' ? 'active' : ''} onClick={() => setTab('logs')}>Logs</button>
+            <button className={tab === 'terminal' ? 'active' : ''} onClick={() => setTab('terminal')}>Terminal (exec)</button>
+          </div>
+          {tab === 'overview' && <OverviewTab w={w} />}
+          {tab === 'metrics' && <MetricsTab name={name} />}
+          {tab === 'logs' && <LogsTab name={name} />}
+          {tab === 'terminal' && <TerminalTab name={name} kind={w.kind} />}
+        </>
+      )}
     </div>
   )
 }
 
-function useWorkload(name: string): { w: Workload | null; error: string | null; loading: boolean } {
+function OverviewTab({ w }: { w: Workload }) {
   const { project, env } = useSelection()
-  const [state, setState] = useState<{ w: Workload | null; error: string | null; loading: boolean }>({
-    w: null,
-    error: null,
-    loading: true,
-  })
-  useEffect(() => {
-    api
-      .deployment(project, env)
-      .then((d) => setState({ w: d.workloads.find((x) => x.name === name) ?? null, error: null, loading: false }))
-      .catch((e) => setState({ w: null, error: e.message, loading: false }))
-  }, [project, env, name])
-  return state
-}
-
-function OverviewTab({ name }: { name: string }) {
-  const { project, env } = useSelection()
-  const { w, error, loading } = useWorkload(name)
+  const name = w.name
   const [summary, setSummary] = useState<Awaited<ReturnType<typeof api.summary>> | null>(null)
 
   useEffect(() => {
     if (!project || !env) return
     api.summary(project, env, 3600).then(setSummary).catch(() => {})
   }, [project, env])
-
-  if (loading) return <Loading />
-  if (error) return <ErrorBox message={error} />
-  if (!w) return <ErrorBox message={`Workload ${name} not found in this environment.`} />
 
   const svcBlock = summary?.data?.services?.[name] ?? {}
   const firstInstance = Object.values(svcBlock)[0]
@@ -228,11 +251,11 @@ function LogsTab({ name }: { name: string }) {
   )
 }
 
-function TerminalTab({ name }: { name: string }) {
+function TerminalTab({ name, kind }: { name: string; kind: 'webapp' | 'worker' }) {
   const { project, env } = useSelection()
   return (
     <Suspense fallback={<Loading />}>
-      <TerminalPane projectId={project} env={env} app={name} />
+      <TerminalPane projectId={project} env={env} app={name} kind={kind} />
     </Suspense>
   )
 }

@@ -18,7 +18,7 @@ app.use((err: unknown, _req: express.Request, res: express.Response, next: expre
 })
 
 if (process.env.NODE_ENV === 'production') {
-  const distDir = process.env.DIST_DIR ?? path.resolve(__dirname, '../../dist')
+  const distDir = process.env.DIST_DIR ?? path.resolve(__dirname, '../dist')
   app.use(express.static(distDir))
   app.get('*', (_req, res) => res.sendFile(path.join(distDir, 'index.html')))
 }

@@ -11,6 +11,7 @@ export function attachTerminal(wss: WebSocketServer): void {
     const project = url.searchParams.get('project') ?? ''
     const env = url.searchParams.get('env') ?? ''
     const app = url.searchParams.get('app') ?? ''
+    const kind = url.searchParams.get('kind') === 'worker' ? 'worker' : 'app'
 
     if (!project || !env || !app) {
       socket.close(4000, 'project, env and app query params are required')
@@ -28,7 +29,7 @@ export function attachTerminal(wss: WebSocketServer): void {
           project,
           '-e',
           env,
-          '-A',
+          kind === 'worker' ? '--worker' : '-A',
           app,
           '--',
           '/bin/bash',

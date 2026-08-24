@@ -81,10 +81,12 @@ export default function App() {
   const setProject = (id: string) => {
     setProjectId(id)
     setEnvId('')
+    if (window.location.pathname.startsWith('/workloads/')) navigate('/workloads')
   }
   const setEnv = (id: string) => {
     setEnvId(id)
     localStorage.setItem('sel.env', id)
+    if (window.location.pathname.startsWith('/workloads/')) navigate('/workloads')
   }
 
   return (
