@@ -20,6 +20,16 @@ import type {
 } from './types'
 
 export const api = {
+  overview: () =>
+    get<{
+      totalProjects: number
+      activeProjects: number
+      totalEnvironments: number
+      running: number
+      paused: number
+      recent: Array<{ project: string; projectId: string; env: string; status: string; type: string; lastDeploy?: string }>
+    }>('/api/overview'),
+
   projects: () =>
     get<{ organizations: Organization[]; projects: Project[] }>('/api/projects'),
 

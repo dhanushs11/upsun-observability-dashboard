@@ -252,10 +252,11 @@ function LogsTab({ name }: { name: string }) {
 }
 
 function TerminalTab({ name, kind }: { name: string; kind: 'webapp' | 'worker' }) {
-  const { project, env } = useSelection()
+  const { project, env, envs } = useSelection()
+  const envStatus = envs.find((e) => e.id === env)?.status
   return (
     <Suspense fallback={<Loading />}>
-      <TerminalPane projectId={project} env={env} app={name} kind={kind} />
+      <TerminalPane projectId={project} env={env} app={name} kind={kind} envStatus={envStatus} />
     </Suspense>
   )
 }

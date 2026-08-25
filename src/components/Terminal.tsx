@@ -8,19 +8,23 @@ export default function Terminal({
   env,
   app,
   kind,
+  envStatus,
 }: {
   projectId: string
   env: string
   app: string
   kind?: 'webapp' | 'worker'
+  envStatus?: string
 }) {
   const hostRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<XTerm | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
   const [status, setStatus] = useState<'connecting' | 'open' | 'closed'>('connecting')
 
+  const inactive = envStatus != null && envStatus !== 'active'
+
   useEffect(() => {
-    if (!hostRef.current || termRef.current) return
+    if (inactive || !hostRef.current || termRef.current) return
 
     const term = new XTerm({
       cursorBlink: true,
@@ -73,7 +77,18 @@ export default function Terminal({
       term.dispose()
       termRef.current = null
     }
-  }, [projectId, env, app, kind])
+  }, [projectId, env, app, kind, inactive])
+
+  if (inactive) {
+    return (
+      <div className="empty" style={{ padding: 40 }}>
+        Environment <strong>{env}</strong> is <strong>{envStatus}</strong> — there is no running
+        container to exec into.
+        <br />
+        <span style={{ fontSize: 12 }}>Activate the environment from the Upsun Console, then reopen this tab.</span>
+      </div>
+    )
+  }
 
   return (
     <div>
