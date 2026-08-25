@@ -76,7 +76,9 @@ api.get(
     })) as { projects: Json[] }
 
     const perProject = await pooled(projects, 6, (p) =>
-      cached(`envs:${str(p['id'])}`, TTL.environments, async () => {
+      // NB: distinct cache key — must NOT collide with the /environments
+      // route's `envs:` key, which stores a different shape ({environments}).
+      cached(`envsummary:${str(p['id'])}`, TTL.environments, async () => {
         const body = await upsunGet(`projects/${str(p['id'])}/environments`)
         const list = Array.isArray(body) ? body : (body['environments'] as Json[]) ?? []
         const envs: EnvSummary[] = list.map((e) => ({

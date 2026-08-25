@@ -19,8 +19,20 @@ app.use((err: unknown, _req: express.Request, res: express.Response, next: expre
 
 if (process.env.NODE_ENV === 'production') {
   const distDir = process.env.DIST_DIR ?? path.resolve(__dirname, '../dist')
-  app.use(express.static(distDir))
-  app.get('*', (_req, res) => res.sendFile(path.join(distDir, 'index.html')))
+  // Hashed assets are immutable — cache aggressively.
+  app.use(
+    '/assets',
+    express.static(path.join(distDir, 'assets'), {
+      maxAge: '30d',
+      immutable: true,
+    }),
+  )
+  // Never cache HTML: it references hashed bundle names that change on deploy.
+  app.use(express.static(distDir, { index: false, maxAge: 0 }))
+  app.get('*', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store')
+    res.sendFile(path.join(distDir, 'index.html'))
+  })
 }
 
 const server = http.createServer(app)

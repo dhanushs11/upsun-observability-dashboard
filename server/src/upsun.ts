@@ -14,6 +14,21 @@ export class UpsunApiError extends Error {
 }
 
 function viaCli(path: string): Promise<Json> {
+  // The CLI shares session state under ~/.platformsh with file locks;
+  // concurrent invocations can fail with LoginRequiredException. Serialize
+  // access and retry once.
+  return cliQueue(() => cliCall(path).catch(() => cliCall(path)))
+}
+
+/** Serialize promise-producing functions (CLI calls must not overlap). */
+let cliTail: Promise<unknown> = Promise.resolve()
+function cliQueue<T>(fn: () => Promise<T>): Promise<T> {
+  const next = cliTail.then(fn, fn)
+  cliTail = next.catch(() => {})
+  return next
+}
+
+function cliCall(path: string): Promise<Json> {
   return new Promise((resolve, reject) => {
     const proc = spawn('platform', ['api:curl', '--no-interaction', path], {
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -29,7 +44,12 @@ function viaCli(path: string): Promise<Json> {
         return
       }
       try {
-        resolve(JSON.parse(out) as Json)
+        const parsed = JSON.parse(out) as Json
+        if (parsed && parsed['status'] === 'error') {
+          reject(new UpsunApiError(502, `Upsun API error for ${path}`))
+          return
+        }
+        resolve(parsed)
       } catch {
         reject(new UpsunApiError(502, `Unparseable CLI response for ${path}`))
       }

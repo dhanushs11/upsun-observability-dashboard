@@ -50,9 +50,9 @@ export default function App() {
     api
       .projects()
       .then(({ projects }) => {
-        setProjects(projects)
-        if (!projects.some((p) => p.id === project)) {
-          setProjectId(projects[0]?.id ?? '')
+        setProjects(projects ?? [])
+        if (!(projects ?? []).some((p) => p.id === project)) {
+          setProjectId((projects ?? [])[0]?.id ?? '')
         }
       })
       .catch((e) => setError(String(e.message)))
@@ -66,11 +66,11 @@ export default function App() {
     api
       .environments(project)
       .then(({ environments }) => {
-        setEnvs(environments)
-        if (!environments.some((e) => e.id === env)) {
+        setEnvs(environments ?? [])
+        if (!(environments ?? []).some((e) => e.id === env)) {
           const preferred =
-            environments.find((e) => e.status === 'active' && e.isMain) ??
-            environments[0]
+            (environments ?? []).find((e) => e.status === 'active' && e.isMain) ??
+            (environments ?? [])[0]
           setEnvId(preferred?.id ?? '')
         }
       })
